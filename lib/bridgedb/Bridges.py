@@ -28,6 +28,8 @@ from bridgedb.parse import addr
 from bridgedb.parse import networkstatus
 from bridgedb.safelog import logSafely
 
+from stem.descriptor.reader import DescriptorReader
+
 try:
     from cStringIO import StringIO
 except ImportError:
@@ -570,7 +572,7 @@ class PluggableTransport(object):
         line = ' '.join(sections)
         return line
 
-def parseExtraInfoFile(f):
+def parseExtraInfoFiles(files):
     """
     parses lines in Bridges extra-info documents.
     returns an object whose type corresponds to the
@@ -588,61 +590,25 @@ def parseExtraInfoFile(f):
             transport SP <methodname> SP <address:port> [SP arglist] NL
     """
 
-    ID = None
-    for line in f:
-        line = line.strip()
-
-        argdict = {}
-
-        # do we need to skip 'opt' here?
-        # if line.startswith("opt "):
-        #     line = line[4:]
-
-        # get the bridge ID ?
-        if line.startswith("extra-info "): #XXX: get the router ID
-            line = line[11:]
-            (nickname, ID) = line.split()
-            logging.debug("  Parsed Nickname: %s", nickname)
-            if is_valid_fingerprint(ID):
-                logging.debug("  Parsed fingerprint: %s", ID)
-                ID = fromHex(ID)
-            else:
-                logging.debug("  Parsed invalid fingerprint: %s", ID)
-
-        # get the transport line
-        if ID and line.startswith("transport "):
-            fields = line[10:].split()
-            # [ arglist ] field, optional
-            if len(fields) >= 3:
-                arglist = fields[2:]
-                # parse arglist [k=v,...k=v] as argdict {k:v,...,k:v} 
+    with DescriptorReader(files, descriptor_type = 'extra-info 1.0') as reader:
+        for bridge in reader:
+            fingerprint = fromHex(bridge.fingerprint)
+            for method, (ipstring, port, arglist) in bridge.transport.iteritems():
+                method_name = method.encode('ascii') # should we make sure this thing yields only ascii,
+                                                     # or should we change the assert on line 528?
+                address = ipaddr.IPAddress(ipstring)
                 argdict = {}
+
+                logging.debug("Found %s transport on %s (%s)",
+                    method_name, bridge.nickname, bridge.fingerprint)
+
                 for arg in arglist:
                     try: k,v = arg.split('=')
                     except ValueError: continue
                     argdict[k] = v
                     logging.debug("  Parsing Argument: %s: %s", k, v)
 
-            # get the required fields, method name and address
-            if len(fields) >= 2:
-                # get the method name
-                # Method names must be C identifiers
-                for regex in [re_ipv4, re_ipv6]:
-                    try:
-                        method_name = re.match('[_a-zA-Z][_a-zA-Z0-9]*',fields[0]).group()
-                        m = regex.match(fields[1])
-                        address  = ipaddr.IPAddress(m.group(1))
-                        port = int(m.group(2))
-                        logging.debug("  Parsed Transport: %s %s:%d"
-                                      % (method_name, address, port))
-                        yield ID, method_name, address, port, argdict
-                    except (IndexError, ValueError, AttributeError):
-                        # skip this line
-                        continue
-
-        # end of descriptor is defined how? 
-        if ID and line.startswith("router-signature"):
-            ID = None
+                yield fingerprint, method_name, address, port, argdict
 
 def parseStatusFile(networkstatusFile):
     """Parse entries in a bridge networkstatus file.

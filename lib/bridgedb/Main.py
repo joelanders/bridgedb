@@ -111,27 +111,22 @@ def load(state, splitter, clear=False):
     # read pluggable transports from extra-info document
     # XXX: should read from networkstatus after bridge-authority
     # does a reachability test
-    for filename in state.EXTRA_INFO_FILES:
-        logging.info("Opening extra-info file: '%s'" % filename)
-        f = open(filename, 'r')
-        for transport in Bridges.parseExtraInfoFile(f):
-            ID, method_name, address, port, argdict = transport
-            try:
-                if bridges[ID].running:
-                    logging.info("Adding %s transport to running bridge"
-                                 % method_name)
-                    bridgePT = Bridges.PluggableTransport(
-                        bridges[ID], method_name, address, port, argdict)
-                    bridges[ID].transports.append(bridgePT)
-                    if not bridgePT in bridges[ID].transports:
-                        logging.critical(
-                            "Added a transport, but it disappeared!",
-                            "\tTransport: %r" % bridgePT)
-            except KeyError as error:
-                logging.error("Could not find bridge with fingerprint '%s'."
-                              % Bridges.toHex(ID))
-        logging.debug("Closing extra-info file: '%s'" % filename)
-        f.close()
+    for transport in Bridges.parseExtraInfoFiles(state.EXTRA_INFO_FILES):
+        ID, method_name, address, port, argdict = transport
+        try:
+            if bridges[ID].running:
+                logging.info("Adding %s transport to running bridge"
+                             % method_name)
+                bridgePT = Bridges.PluggableTransport(
+                    bridges[ID], method_name, address, port, argdict)
+                bridges[ID].transports.append(bridgePT)
+                if not bridgePT in bridges[ID].transports:
+                    logging.critical(
+                        "Added a transport, but it disappeared!",
+                        "\tTransport: %r" % bridgePT)
+        except KeyError as error:
+            logging.error("Could not find bridge with fingerprint '%s'."
+                            % Bridges.toHex(ID))
 
     if state.COUNTRY_BLOCK_FILE:
         logging.info("Opening Blocking Countries file %s"
