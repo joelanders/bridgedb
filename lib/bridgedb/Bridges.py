@@ -471,7 +471,7 @@ re_ipv4 = re.compile("((?:\d{1,3}\.?){4}):(.*$)")
 class PluggableTransport(object):
     """A PT with reference to the parent bridge on which it is running."""
 
-    def __init__(self, bridge, methodname, address, port, argdict=None):
+    def __init__(self, bridge, published, methodname, address, port, argdict=None):
         """Create a ``PluggableTransport`` describing a PT running on a bridge.
 
         Pluggable transports are described within a bridge's ``@type
@@ -527,12 +527,19 @@ class PluggableTransport(object):
         assert type(methodname) is str
 
         self.bridge = bridge
+        self.published = published
         self.address = address
         self.port = port
         self.methodname = methodname
         if type(argdict) is dict:
             self.argdict = argdict
         else: self.argdict = {}
+    def __eq__(self, other):
+        return (self.bridge     == other.bridge and
+                self.methodname == other.methodname and
+                self.address    == other.address and
+                self.port       == other.port and
+                self.argdict    == other.argdict)
 
     def getTransportLine(self, includeFingerprint=False, bridgePrefix=False):
         """Get a torrc line for this pluggable transport.
@@ -608,7 +615,7 @@ def parseExtraInfoFiles(files):
                     argdict[k] = v
                     logging.debug("  Parsing Argument: %s: %s", k, v)
 
-                yield fingerprint, method_name, address, port, argdict
+                yield fingerprint, bridge.published, method_name, address, port, argdict
 
 def parseStatusFile(networkstatusFile):
     """Parse entries in a bridge networkstatus file.

@@ -112,13 +112,23 @@ def load(state, splitter, clear=False):
     # XXX: should read from networkstatus after bridge-authority
     # does a reachability test
     for transport in Bridges.parseExtraInfoFiles(state.EXTRA_INFO_FILES):
-        ID, method_name, address, port, argdict = transport
+        ID, published, method_name, address, port, argdict = transport
         try:
             if bridges[ID].running:
-                logging.info("Adding %s transport to running bridge"
-                             % method_name)
                 bridgePT = Bridges.PluggableTransport(
-                    bridges[ID], method_name, address, port, argdict)
+                    bridges[ID], published, method_name, address, port, argdict)
+                if bridgePT in bridges[ID].transports:
+                    logging.debug("Transport already exists...")
+                    existing_pt_index = bridges[ID].transports.index(bridgePT)
+                    existing_pt = bridges[ID].transports[existing_pt_index]
+                    if existing_pt.published >= bridgePT.published:
+                        logging.debug("  ...existing transport is current.")
+                        continue
+                    else:
+                        logging.debug("  ...removing stale transport.")
+                        bridges[ID].transports.remove(bridgePT)
+                logging.info("Adding %s transport to running bridge"
+                            % method_name)
                 bridges[ID].transports.append(bridgePT)
                 if not bridgePT in bridges[ID].transports:
                     logging.critical(
