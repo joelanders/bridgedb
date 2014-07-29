@@ -112,11 +112,12 @@ class BridgeHistory(object):
         # return True if self.weightedTime is greater than the weightedTime
         # of the > bottom 1/8 all bridges, sorted by weightedTime
         with bridgedb.Storage.getDB() as db:
-            allWeightedTimes = [ bh.weightedTime for bh in db.getAllBridgeHistory()]
-            numBridges = len(allWeightedTimes)
-            logging.debug("Got %d weightedTimes", numBridges)
-            allWeightedTimes.sort()
-            if self.weightedTime >= allWeightedTimes[numBridges/8]:
+            count = 0
+            for i, bh in enumerate(db.getAllBridgeHistory()):
+                if self.weightedTime > bh.weightedTime:
+                    count += 1
+            i += 1 # i starts from 0
+            if count >= i/8:
                 return True
             return False
 
