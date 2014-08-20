@@ -21,6 +21,8 @@ HAS_STEM = False
 try:
     from stem.descriptor.server_descriptor import RelayDescriptor
     from stem.descriptor.extrainfo_descriptor import BridgeExtraInfoDescriptor
+    from stem.descriptor.networkstatus import BridgeNetworkStatusDocument
+    from stem.descriptor.router_status_entry import RouterStatusEntryV2
     from bridgedb.parse import descriptors
 except (ImportError, NameError), error:
     print("There was an error importing stem: %s" % error)
@@ -153,11 +155,11 @@ class ParseDescriptorsTests(unittest.TestCase):
 
     def test_parse_descriptors_parseBridgeNetworkStatusFile(self):
         """Test for ``b.p.descriptors.parseNetworkStatusFile``."""
-        descFile = io.BytesIO(BRIDGE_NETWORKSTATUS)
-        routers = descriptors.parseNetworkStatusFile(descFile)
-        self.assertIsInstance(routers, list)
-        bridge = routers[0]
-        self.assertIsInstance(bridge, RelayDescriptor)
+        netStatFile = io.BytesIO(BRIDGE_NETWORKSTATUS)
+        networkStatus = descriptors.parseNetworkStatusFile(netStatFile)
+        self.assertIsInstance(networkStatus, BridgeNetworkStatusDocument)
+        bridge = networkStatus.routers['6FA9216CF3A06E89A03121ACC31F70F8DFD7DDCC']
+        self.assertIsInstance(bridge, RouterStatusEntryV2)
         self.assertEqual(bridge.address, u'152.78.9.20')
         self.assertEqual(bridge.fingerprint,
                          u'6FA9216CF3A06E89A03121ACC31F70F8DFD7DDCC')
@@ -170,7 +172,7 @@ class ParseDescriptorsTests(unittest.TestCase):
         self.assertIsInstance(routers, list)
         bridge = routers[0]
         self.assertIsInstance(bridge, BridgeExtraInfoDescriptor)
-        self.assertEqual(bridge.address, u'152.78.9.20')
+        self.assertEqual(bridge.transport['obfs3'], (u'152.78.9.20', 17811, []))
         self.assertEqual(bridge.fingerprint,
                          u'6FA9216CF3A06E89A03121ACC31F70F8DFD7DDCC')
 
@@ -183,7 +185,8 @@ class ParseDescriptorsTests(unittest.TestCase):
         routers = descriptors.parseBridgeExtraInfoFiles(descFileOne, descFileTwo)
         self.assertIsInstance(routers, list)
         bridge = routers[0]
+        self.assertEqual(str(bridge.published), '2014-03-12 17:07:08')
         self.assertIsInstance(bridge, BridgeExtraInfoDescriptor)
-        self.assertEqual(bridge.address, u'152.78.9.20')
+        self.assertEqual(bridge.transport['obfs3'], (u'152.78.9.20', 17811, []))
         self.assertEqual(bridge.fingerprint,
                          u'6FA9216CF3A06E89A03121ACC31F70F8DFD7DDCC')

@@ -32,9 +32,7 @@ def parseNetworkStatusFile(filename, validate=True):
     """
     logging.info("Parsing networkstatus entries with Stem: %s" % filename)
 
-    fh = open(filename)
-    descriptors = fh.read()
-    fh.close()
+    descriptors = filename.read()
 
     # See ticket #12254 for why networkstatus-bridges documents don't look
     # anything like the networkstatus v2 documents that they are purported to
@@ -118,8 +116,7 @@ def deduplicate(descriptors):
                                   "timestamp: %s")
                                  % (safelog.logSafely(fingerprint),
                                     router.published))
-            else:
-                nonDuplicates.append(router)
+        nonDuplicates.append(router)
 
     logging.info("Descriptor deduplication finished.")
     logging.info("Number of duplicates: %d" % len(duplicates))
