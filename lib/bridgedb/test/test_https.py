@@ -124,9 +124,14 @@ class HTTPTests(unittest.TestCase):
         bridge_lines = [line.text.split('\n') for line in soup]
         self.assertTrue(len(bridge_lines) > 0, "Found no bridge lines")
         for bridge_line in bridge_lines:
-            items = bridge_line.split(' ')
-            self.assertEquals(len(items), fieldsPerBridge, "Expected %d fields in bridge line %s" % (fieldsPerBridge, str(items)))
-            bridges.append(items)
+            # Just in case there are still multiple line in the list:
+            for line in bridge_line:
+                items = line.split()
+                print("\nItems in bridge line: %s" % items)
+                self.assertEquals(len(items), fieldsPerBridge,
+                                  "Expected %d fields in bridge line %s"
+                                  % (fieldsPerBridge, line))
+                bridges.append(line)
         return bridges
 
     def test_get_obfs2_ipv4(self):
