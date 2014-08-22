@@ -136,38 +136,6 @@ class BridgeClassTest(unittest.TestCase):
                          % (self.fingerprint, ptArgsList),
                          bridgeLine)
 
-    def test_getDescriptorDigests(self):
-        sha1hash = hashlib.sha1()
-        ei_digest = 'abcdefghijklmno'
-
-        test = "this is a test line\nFollowed by another\n"
-        test += "extra-info-digest %s\n" % ei_digest
-        sha1hash.update(test)
-        digest = sha1hash.hexdigest()
-        test += "-----BEGIN SIGNATURE-----\n"
-        test += "This is a test line that should be skipped\n"
-        test += "-----END SIGNATURE-----\n"
-        digests = Bridges.getDescriptorDigests(StringIO(test))
-        self.failUnlessIn(digest, digests)
-        self.failUnlessEqual(ei_digest, digests[digest])
-
-    def test_getExtraInfoDigests(self):
-        sha1hash = hashlib.sha1()
-
-        test = "Many words and line all together\n"
-        test += "extra info is nothing like weather\n"
-        test += "it's certain to come, like the key in a hum\n"
-        test += "but sometimes without a transport and rum\n"
-        content = test
-        sha1hash.update(test)
-        digest = sha1hash.hexdigest()
-        test += "-----BEGIN SIGNATURE-----\n"
-        test += "But the rum can't save the world like you\n"
-        test += "-----END SIGNATURE-----\n"
-        digests = Bridges.getExtraInfoDigests(StringIO(test))
-        self.failUnlessIn(digest, digests)
-        self.failUnlessEqual(content, digests[digest].read())
-
     def test_splitterBridgeInsertion(self):
         key = "Testing-Bridges-To-Rings"
         splitter = Bridges.FilteredBridgeSplitter(key)
