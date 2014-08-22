@@ -61,116 +61,43 @@ def load(state, splitter, clear=False):
     desc_digests = {}
     ei_digests = {}
 
+    # get bridges from network status
+    # merge in stuff from bridge-descriptors
+    # merge in stuff from extra-info-descriptors
+    # merge in stuff from country blocks
+    # update bridge history
+    # insert into splitter
+
     logging.info("Opening network status file: %s" % state.STATUS_FILE)
-    f = open(state.STATUS_FILE, 'r')
-    for (ID, nickname, desc_digest, running, stable,
-         ORaddr, ORport, or_addresses,
-         timestamp) in Bridges.parseStatusFile(f):
-        bridge = Bridges.Bridge(nickname, ORaddr, ORport, id_digest=ID,
-                                or_addresses=or_addresses)
-        bridge.assertOK()
-        bridge.setStatus(running, stable)
-        bridge.setDescriptorDigest(desc_digest)
-        bridges[ID] = bridge
+    bridges = descriptors.parseNetworkStatusFile(state.STATUS_FILE).values():
+    # these have to be converted from stem objects to bridgedb objects
 
-        if ID in timestamps.keys():
-            timestamps[ID].append(timestamp)
-        else:
-            timestamps[ID] = [timestamp]
-    logging.debug("Closing network status file")
-    f.close()
+    logging.info("Opening bridge-server-descriptor file: '%s'" %
+                 state.BRIDGE_FILE)
+    servDescs = descriptors.parseServerDescriptorsFile(state.BRIDGE_FILE)
 
-    for fname in state.BRIDGE_FILES:
-        logging.info("Opening bridge-server-descriptor file: '%s'" % fname)
-        f = open(fname, 'r')
-        desc_digests.update(Bridges.getDescriptorDigests(f))
-        if state.COLLECT_TIMESTAMPS:
-            for bridge in bridges.values():
-                if bridge.getID() in timestamps.keys():
-                    ts = timestamps[bridge.getID()][:]
-                    ts.sort()
-                    for timestamp in ts:
-                        logging.debug(
-                           "Adding/updating timestamps in BridgeHistory for "\
-                           "'%s' in database: %s"
-                           % (bridge.fingerprint, timestamp))
-                        bridgedb.Stability.addOrUpdateBridgeHistory(
-                           bridge, timestamp)
-        logging.debug("Closing bridge-server-descriptor file: '%s'" % fname)
-        f.close()
+    logging.info("Opening extra-info file: '%s'" % state.EXTRA_INFO_FILES)
+    eiDescs = descriptors.parseBridgeExtraInfoFiles(state.EXTRA_INFO_FILES)
 
-    for ID in bridges.keys():
-        bridge = bridges[ID]
-        if bridge.desc_digest in desc_digests:
-            bridge.setVerified()
-            bridge.setExtraInfoDigest(desc_digests[bridge.desc_digest])
-        # We attempt to insert all bridges. If the bridge is not
-        # running, then it is skipped during the insertion process.
+    for bridge in bridges:
+        serverDesc = servDescs[bridge.ID]
+        if serverDesc:
+            #verify
+            #set verified
+            # set ei-digest
+
+        eiDesc = eiDescs[bridge.ID]
+        if eiDesc:
+            #check
+            #append PTs
+
+        BCs = countryBlocks[bridge.ID]
+        if BCs:
+            #append
+
         splitter.insert(bridge)
 
-    # read pluggable transports from extra-info document
-    # XXX: should read from networkstatus after bridge-authority
-    # does a reachability test
-    for filename in state.EXTRA_INFO_FILES:
-        logging.info("Opening extra-info file: '%s'" % filename)
-        f = open(filename, 'r')
-        for transport in Bridges.parseExtraInfoFile(f):
-            ID, method_name, address, port, argdict = transport
-            try:
-                if bridges[ID].running:
-                    logging.info("Adding %s transport to running bridge"
-                                 % method_name)
-                    bridgePT = Bridges.PluggableTransport(
-                        bridges[ID], method_name, address, port, argdict)
-                    bridges[ID].transports.append(bridgePT)
-                    if not bridgePT in bridges[ID].transports:
-                        logging.critical(
-                            "Added a transport, but it disappeared!",
-                            "\tTransport: %r" % bridgePT)
-            except KeyError as error:
-                logging.error("Could not find bridge with fingerprint '%s'."
-                              % Bridges.toHex(ID))
-        logging.debug("Closing extra-info file: '%s'" % filename)
-        f.close()
 
-    if state.COUNTRY_BLOCK_FILE:
-        logging.info("Opening Blocking Countries file %s"
-                     % state.COUNTRY_BLOCK_FILE)
-        f = open(state.COUNTRY_BLOCK_FILE)
-        # Identity digest, primary OR address, portlist, country codes
-        for ID, addr, portlist, cc in Bridges.parseCountryBlockFile(f):
-            if ID in bridges.keys() and bridges[ID].running:
-                for port in portlist:
-                    addrport = "{0}:{1}".format(addr, port)
-                    logging.debug(":'( Tears! %s blocked bridge %s at %s"
-                                  % (cc, bridges[ID].fingerprint, addrport))
-                    try:
-                        bridges[ID].blockingCountries[addrport].update(cc)
-                    except KeyError:
-                        bridges[ID].blockingCountries[addrport] = set(cc)
-        logging.debug("Closing blocking-countries document")
-        f.close()
-
-    def updateBridgeHistory(bridges, timestamps):
-        if not hasattr(state, 'config'):
-            logging.info("updateBridgeHistory(): Config file not set "\
-                "in State file.")
-            return
-        if state.COLLECT_TIMESTAMPS:
-            logging.debug("Beginning bridge stability calculations")
-            for bridge in bridges.values():
-                if bridge.getID() in timestamps.keys():
-                    ts = timestamps[bridge.getID()][:]
-                    ts.sort()
-                    for timestamp in ts:
-                        logging.debug(
-                            "Updating BridgeHistory timestamps for %s: %s"
-                            % (bridge.fingerprint, timestamp))
-                        bridgedb.Stability.addOrUpdateBridgeHistory(
-                            bridge, timestamp)
-            logging.debug("Stability calculations complete")
-
-    reactor.callInThread(updateBridgeHistory, bridges, timestamps)
 
     bridges = None
     state.save()
