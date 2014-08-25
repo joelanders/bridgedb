@@ -52,50 +52,11 @@ def load(state, splitter, clear=False):
         splitter.clear()
 
     logging.info("Loading bridges...")
+    for bridge in Bridges.fromFiles(state.STATUS_FILE, state.BRIDGE_FILE,
+                                    state.EXTRA_INFO_FILES)
+        if bridge.verified
+            splitter.insert(bridge)
 
-    bridges = {}
-    status = {}
-    addresses = {}
-    timestamps = {}
-    bridges = {}
-    desc_digests = {}
-    ei_digests = {}
-
-    # get bridges from network status
-    # merge in stuff from bridge-descriptors
-    # merge in stuff from extra-info-descriptors
-    # merge in stuff from country blocks
-    # update bridge history
-    # insert into splitter
-
-    logging.info("Opening network status file: %s" % state.STATUS_FILE)
-    bridges = descriptors.parseNetworkStatusFile(state.STATUS_FILE).values():
-    # these have to be converted from stem objects to bridgedb objects
-
-    logging.info("Opening bridge-server-descriptor file: '%s'" %
-                 state.BRIDGE_FILE)
-    servDescs = descriptors.parseServerDescriptorsFile(state.BRIDGE_FILE)
-
-    logging.info("Opening extra-info file: '%s'" % state.EXTRA_INFO_FILES)
-    eiDescs = descriptors.parseBridgeExtraInfoFiles(state.EXTRA_INFO_FILES)
-
-    for bridge in bridges:
-        serverDesc = servDescs[bridge.ID]
-        if serverDesc:
-            #verify
-            #set verified
-            # set ei-digest
-
-        eiDesc = eiDescs[bridge.ID]
-        if eiDesc:
-            #check
-            #append PTs
-
-        BCs = countryBlocks[bridge.ID]
-        if BCs:
-            #append
-
-        splitter.insert(bridge)
 
 
 

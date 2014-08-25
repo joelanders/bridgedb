@@ -25,6 +25,7 @@ import bridgedb.Bucket
 
 from bridgedb.crypto import getHMACFunc
 from bridgedb.parse import addr
+from bridgedb.parse import descriptors
 from bridgedb.safelog import logSafely
 
 try:
@@ -38,6 +39,65 @@ ID_LEN = 20
 HEX_DIGEST_LEN = 40
 DIGEST_LEN = 20
 PORTSPEC_LEN = 16
+
+# takes a single stem object and makes a bridgedb
+# object from it
+def bridgeFromStem(stemBridge)
+    addyHash = {}
+    for ipString, port, isIp6 in stemBridge.orAddresses
+        ip = ipaddr.IPAddress(ipString)
+        if addyHash[ip]:
+            addyHash[ip].add(port) # should accept port ranges
+        else:
+            addyHash[ip] = PortList(port)
+
+    return Bridge(stemBridge.nickname,
+                  ipaddr.IPAddress(stemBridge.address),
+                  stemBridge.orport,
+                  id_digest=stemBridge.digest,
+                  or_addresses=addyHash)
+
+# stem gives us a dict of its own kind of objects,
+# we want a list of our own objects
+def bridgesFromStemNetStatDoc(netStatDoc)
+    return map(bridgeFromStem, netStatDoc.bridges.values())
+
+def verifyBridgesWithDescriptors(bridges, descriptors)
+
+# get bridges from network status
+# merge in stuff from bridge-descriptors
+# merge in stuff from extra-info-descriptors
+# merge in stuff from country blocks
+# update bridge history
+# insert into splitter
+def fromFiles(netStatusFile, bridgeDescFile, extraInfoFiles)
+    netStatDoc = descriptors.parseNetworkStatusFile(netStatusFile)
+    bridges = bridgesFromStemNetStatDoc(netStatDoc)
+
+    logging.info("Opening bridge-server-descriptor file: '%s'" bridgeDescFile)
+    servDescs = descriptors.parseServerDescriptorsFile(bridgeDescFile)
+
+    logging.info("Opening extra-info file: '%s'" extraInfoFiles)
+    eiDescs = descriptors.parseBridgeExtraInfoFiles(extraInfoFiles)
+
+    for bridge in bridges:
+        serverDesc = servDescs[bridge.ID]
+        if serverDesc:
+            #verify
+            #set verified
+            # set ei-digest
+
+        eiDesc = eiDescs[bridge.ID]
+        if eiDesc:
+            #check
+            #append PTs
+
+        BCs = countryBlocks[bridge.ID]
+        if BCs:
+            #append
+
+    return bridges
+
 
 
 def is_valid_ip(ip):
