@@ -62,7 +62,22 @@ def bridgeFromStem(stemBridge)
 def bridgesFromStemNetStatDoc(netStatDoc)
     return map(bridgeFromStem, netStatDoc.bridges.values())
 
+# stem gives us a list, but a hash from digest -> value is
+# better for us in a couple places
+def descHashFromDescList(descList)
+    # basically Enumerable#group_by in ruby...
+    descHash = {}
+    for desc in descList:
+        if descHash[desc.digest]:
+            raise "duplicate desc"
+        else:
+            descHash[desc.digest] = desc
+
 def verifyBridgesWithDescriptors(bridges, descriptors)
+    for bridge in bridges:
+        if descriptors[bridge.descDigest]:
+            bridge.setVerified()
+            bridge.setExtraInfoDigest(descHash[bridge.descDigest])
 
 # get bridges from network status
 # merge in stuff from bridge-descriptors
@@ -75,7 +90,9 @@ def fromFiles(netStatusFile, bridgeDescFile, extraInfoFiles)
     bridges = bridgesFromStemNetStatDoc(netStatDoc)
 
     logging.info("Opening bridge-server-descriptor file: '%s'" bridgeDescFile)
-    servDescs = descriptors.parseServerDescriptorsFile(bridgeDescFile)
+    servDescList = descriptors.parseServerDescriptorsFile(bridgeDescFile)
+    servDescHash = descHashFromDescList(servDescList)
+    verifyBridgesWithDescriptors(bridges, servDescHash)
 
     logging.info("Opening extra-info file: '%s'" extraInfoFiles)
     eiDescs = descriptors.parseBridgeExtraInfoFiles(extraInfoFiles)
