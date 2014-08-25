@@ -42,6 +42,7 @@ PORTSPEC_LEN = 16
 
 # takes a single stem object and makes a bridgedb
 # object from it
+# stemBridge is a BridgeNetworkStatusDocument or something
 def bridgeFromStem(stemBridge)
     addyHash = {}
     for ipString, port, isIp6 in stemBridge.orAddresses
@@ -57,13 +58,25 @@ def bridgeFromStem(stemBridge)
                   id_digest=stemBridge.digest,
                   or_addresses=addyHash)
 
+# makes list of PTs from stem's BridgeExtraInfoDescriptor
+# XXX think args needs to be turned into a dict
+def PtsFromStem(stemPT)
+    PTs = []
+    for name, (addr, port, args) in stemPT.transport:
+        PTs.append(PluggableTransport(stemPT.fingerprint,
+                                      name,
+                                      addr,
+                                      port,
+                                      args))
+    return PTs
+
+
 # stem gives us a dict of its own kind of objects,
 # we want a list of our own objects
 def bridgesFromStemNetStatDoc(netStatDoc)
     return map(bridgeFromStem, netStatDoc.bridges.values())
 
-# stem gives us a list, but a hash from digest -> value is
-# better for us in a couple places
+# stem gives us a list, but we want to look up by digest
 def descHashFromDescList(descList)
     # basically Enumerable#group_by in ruby...
     descHash = {}
@@ -73,11 +86,27 @@ def descHashFromDescList(descList)
         else:
             descHash[desc.digest] = desc
 
+#maybe useful?
+def _groupBy(items, function)
+    # like Enumerable#group_by in ruby...
+    theHash = {}
+    for item in items:
+        if theHash[function(item)]
+            theHash[function(item)].append(item)
+        else:
+            theHash[function(item)] = [item]
+
+
 def verifyBridgesWithDescriptors(bridges, descriptors)
     for bridge in bridges:
         if descriptors[bridge.descDigest]:
             bridge.setVerified()
             bridge.setExtraInfoDigest(descHash[bridge.descDigest])
+
+def addTransportsToBridges(bridges, eiDescriptors)
+    for bridge in bridges:
+        if eiDescriptors[bridge.descDigest]:
+            bridge.transports = PtsFromStem(eiDescriptors[bridge.descDigest])
 
 # get bridges from network status
 # merge in stuff from bridge-descriptors
@@ -96,6 +125,7 @@ def fromFiles(netStatusFile, bridgeDescFile, extraInfoFiles)
 
     logging.info("Opening extra-info file: '%s'" extraInfoFiles)
     eiDescs = descriptors.parseBridgeExtraInfoFiles(extraInfoFiles)
+    addTransportsToBridges(bridges, eiDescs)
 
     for bridge in bridges:
         serverDesc = servDescs[bridge.ID]
