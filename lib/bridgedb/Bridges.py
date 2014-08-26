@@ -108,13 +108,26 @@ def addTransportsToBridges(bridges, eiDescriptors)
         if eiDescriptors[bridge.descDigest]:
             bridge.transports = PtsFromStem(eiDescriptors[bridge.descDigest])
 
+def addBlockingCountriesToBridges(bridges, blockingCountries)
+    for bridge in bridges:
+        if bridge.running and blockingCountries[bridge.desc_digest]:
+            for ID, addr, portlist, cc in blockingCountries[bridge.desc_digest]
+                for port in portlist:
+                    addrport = "{0}:{1}".format(addr, port)
+                    logging.debug(":'( Tears! %s blocked bridge %s at %s"
+                            % (cc, bridge.fingerprint, addrport))
+                    try:
+                        bridge.blockingCountries[addrport].update(cc)
+                    except KeyError:
+                        bridge.blockingCountries[addrport] = set(cc)
+
 # get bridges from network status
 # merge in stuff from bridge-descriptors
 # merge in stuff from extra-info-descriptors
 # merge in stuff from country blocks
 # update bridge history
 # insert into splitter
-def fromFiles(netStatusFile, bridgeDescFile, extraInfoFiles)
+def fromFiles(netStatusFile, bridgeDescFile, extraInfoFiles, countryBlockFile)
     netStatDoc = descriptors.parseNetworkStatusFile(netStatusFile)
     bridges = bridgesFromStemNetStatDoc(netStatDoc)
 
@@ -127,25 +140,14 @@ def fromFiles(netStatusFile, bridgeDescFile, extraInfoFiles)
     eiDescs = descriptors.parseBridgeExtraInfoFiles(extraInfoFiles)
     addTransportsToBridges(bridges, eiDescs)
 
-    for bridge in bridges:
-        serverDesc = servDescs[bridge.ID]
-        if serverDesc:
-            #verify
-            #set verified
-            # set ei-digest
-
-        eiDesc = eiDescs[bridge.ID]
-        if eiDesc:
-            #check
-            #append PTs
-
-        BCs = countryBlocks[bridge.ID]
-        if BCs:
-            #append
+    if state.COUNTRY_BLOCK_FILE:
+         logging.info("Opening Blocking Countries file %s"
+                 % state.COUNTRY_BLOCK_FILE)
+         countryBlockList = parseCountryBlockFile(countryBlockFile)
+         countryBlockHash = blockHashFromList(countryBlockList)
+         addBlockingCountriesToBridges(bridges, countryBlockHash)
 
     return bridges
-
-
 
 def is_valid_ip(ip):
     """Return True if ip is the string encoding of a valid IPv4 address,
