@@ -43,24 +43,25 @@ PORTSPEC_LEN = 16
 # takes a single stem object and makes a bridgedb
 # object from it
 # stemBridge is a BridgeNetworkStatusDocument or something
-def bridgeFromStem(stemBridge)
+def bridgeFromStem(stemBridge):
     addyHash = {}
-    for ipString, port, isIp6 in stemBridge.orAddresses
-        ip = ipaddr.IPAddress(ipString)
-        if addyHash[ip]:
-            addyHash[ip].add(port) # should accept port ranges
-        else:
-            addyHash[ip] = PortList(port)
+    # check spec and stem and stuff
+#    for ipString, port, isIp6 in stemBridge.orAddresses:
+#        ip = ipaddr.IPAddress(ipString)
+#        if addyHash[ip]:
+#            addyHash[ip].add(port) # should accept port ranges
+#        else:
+#            addyHash[ip] = PortList(port)
 
     return Bridge(stemBridge.nickname,
                   ipaddr.IPAddress(stemBridge.address),
-                  stemBridge.orport,
-                  id_digest=stemBridge.digest,
+                  stemBridge.or_port,
+                  id_digest=fromHex(stemBridge.digest),
                   or_addresses=addyHash)
 
 # makes list of PTs from stem's BridgeExtraInfoDescriptor
 # XXX think args needs to be turned into a dict
-def PtsFromStem(stemPT)
+def PtsFromStem(stemPT):
     PTs = []
     for name, (addr, port, args) in stemPT.transport:
         PTs.append(PluggableTransport(stemPT.fingerprint,
@@ -73,45 +74,54 @@ def PtsFromStem(stemPT)
 
 # stem gives us a dict of its own kind of objects,
 # we want a list of our own objects
-def bridgesFromStemNetStatDoc(netStatDoc)
-    return map(bridgeFromStem, netStatDoc.bridges.values())
+def bridgesFromStemNetStatDoc(netStatDoc):
+    return map(bridgeFromStem, netStatDoc.values())
 
 # stem gives us a list, but we want to look up by digest
-def descHashFromDescList(descList)
+def descHashFromDescList(descList):
     # basically Enumerable#group_by in ruby...
     descHash = {}
     for desc in descList:
-        if descHash[desc.digest]:
-            raise "duplicate desc"
-        else:
-            descHash[desc.digest] = desc
+        try:
+            if descHash[desc.digest()]:
+                raise "duplicate desc"
+        except KeyError:
+            descHash[desc.digest()] = desc
+    return descHash
 
 #maybe useful?
-def _groupBy(items, function)
+def _groupBy(items, function):
     # like Enumerable#group_by in ruby...
     theHash = {}
     for item in items:
-        if theHash[function(item)]
+        if theHash[function(item)]:
             theHash[function(item)].append(item)
         else:
             theHash[function(item)] = [item]
+    return theHash
 
 
-def verifyBridgesWithDescriptors(bridges, descriptors)
+def verifyBridgesWithDescriptors(bridges, descriptors):
     for bridge in bridges:
-        if descriptors[bridge.descDigest]:
-            bridge.setVerified()
-            bridge.setExtraInfoDigest(descHash[bridge.descDigest])
+        try:
+            if descriptors[bridge.getID()]:
+                bridge.setVerified()
+                bridge.setExtraInfoDigest(descHash[bridge.getID()])
+        except KeyError:
+            pass
 
-def addTransportsToBridges(bridges, eiDescriptors)
+def addTransportsToBridges(bridges, eiDescriptors):
     for bridge in bridges:
-        if eiDescriptors[bridge.descDigest]:
-            bridge.transports = PtsFromStem(eiDescriptors[bridge.descDigest])
+        try:
+            if eiDescriptors[bridge.getID()]:
+                bridge.transports = PtsFromStem(eiDescriptors[bridge.getID()])
+        except:
+            pass
 
-def addBlockingCountriesToBridges(bridges, blockingCountries)
+def addBlockingCountriesToBridges(bridges, blockingCountries):
     for bridge in bridges:
-        if bridge.running and blockingCountries[bridge.desc_digest]:
-            for ID, addr, portlist, cc in blockingCountries[bridge.desc_digest]
+        if bridge.running and blockingCountries[bridge.getID()]:
+            for ID, addr, portlist, cc in blockingCountries[bridge.getID()]:
                 for port in portlist:
                     addrport = "{0}:{1}".format(addr, port)
                     logging.debug(":'( Tears! %s blocked bridge %s at %s"
@@ -127,22 +137,23 @@ def addBlockingCountriesToBridges(bridges, blockingCountries)
 # merge in stuff from country blocks
 # update bridge history
 # insert into splitter
-def fromFiles(netStatusFile, bridgeDescFile, extraInfoFiles, countryBlockFile)
+def fromFiles(netStatusFile, bridgeDescFile, extraInfoFiles, countryBlockFile):
     netStatDoc = descriptors.parseNetworkStatusFile(netStatusFile)
     bridges = bridgesFromStemNetStatDoc(netStatDoc)
 
-    logging.info("Opening bridge-server-descriptor file: '%s'" bridgeDescFile)
+    logging.info("Opening bridge-server-descriptor file: '%s'" % bridgeDescFile)
     servDescList = descriptors.parseServerDescriptorsFile(bridgeDescFile)
     servDescHash = descHashFromDescList(servDescList)
     verifyBridgesWithDescriptors(bridges, servDescHash)
 
-    logging.info("Opening extra-info file: '%s'" extraInfoFiles)
-    eiDescs = descriptors.parseBridgeExtraInfoFiles(extraInfoFiles)
+    import pdb;pdb.set_trace()
+    logging.info("Opening extra-info file: '%s'" % extraInfoFiles)
+    eiDescs = descriptors.parseBridgeExtraInfoFiles(*extraInfoFiles)
     addTransportsToBridges(bridges, eiDescs)
 
-    if state.COUNTRY_BLOCK_FILE:
+    if countryBlockFile:
          logging.info("Opening Blocking Countries file %s"
-                 % state.COUNTRY_BLOCK_FILE)
+                 % countryBlockFile)
          countryBlockList = parseCountryBlockFile(countryBlockFile)
          countryBlockHash = blockHashFromList(countryBlockList)
          addBlockingCountriesToBridges(bridges, countryBlockHash)

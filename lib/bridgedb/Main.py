@@ -52,9 +52,11 @@ def load(state, splitter, clear=False):
         splitter.clear()
 
     logging.info("Loading bridges...")
-    for bridge in Bridges.fromFiles(state.STATUS_FILE, state.BRIDGE_FILE,
-                                    state.EXTRA_INFO_FILES)
-        if bridge.verified
+    for bridge in Bridges.fromFiles(state.STATUS_FILE,
+                                    state.BRIDGE_FILES[0],
+                                    state.EXTRA_INFO_FILES,
+                                    state.COUNTRY_BLOCK_FILE):
+        if bridge.verified:
             splitter.insert(bridge)
 
 
